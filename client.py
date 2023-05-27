@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """ Client implementation for Vigenère encryption
 """
+
+# For getting command arguments
 import sys
+
+# For getting system env
+import os
+import dotenv
+
 from vigenere import Vigenere
 
 class Client:
@@ -89,33 +96,26 @@ class Client:
         raise NotImplementedError
 
     # Functions on configuration
-    def config(self, configs = None):
+    # TODO: Modify so that you dont have to have the previous ones for the later ones to work
+    # e.g. ["_", "ciphre", "_"]
+    def config(self, configs: list = None):
         """ Config the client, adding options as properties of client object
             Arguments can be passed as function arguments in list or dict
         """
         if configs is None:
             configs = []
 
-        if isinstance(configs, list):
-            for index, arg in enumerate(configs):
-                match index:
-                    case 0:
-                        self.alphabet = self.validate_alphabet(arg)
-                    case 1:
-                        self.cipher = self.validate_cipher(arg)
-                    case 2:
-                        self.mode = self.validate_mode(arg)
-                    case _:
-                        raise ValueError("")
-
-        # TODO: Use only list (check_config returns list)
-        elif isinstance(configs, dict):
-            if configs.get("alphabet") is not None:
-                self.alphabet = self.validate_alphabet(args["alphabet"])
-            if configs.get("cipher") is not None:
-                self.cipher = self.validate_cipher(args["cipher"])
-            if configs.get("mode") is not None:
-                self.mode = self.validate_mode(args["mode"])
+        for index, arg in enumerate(configs):
+            match index:
+                case 0:
+                    self.alphabet = self.__validate_alphabet(arg)
+                case 1:
+                    self.cipher = self.__validate_cipher(arg)
+                case 2:
+                    self.mode = self.__validate_mode(arg)
+                case _:
+                    raise ValueError(f"Too many arguments! \
+                                        Passed {len(configs)}, but function takes 3.")
 
         if self.alphabet == "":
             self.alphabet = self.__input_alphabet()
@@ -129,38 +129,60 @@ class Client:
     def check_config(self) -> bool:
         """ Check if configs are correct
         """
-        alphabet = self.validate_alphabet(self.alphabet)
-        cipher = self.validate_cipher(self.cipher)
-        mode = self.validate_mode(self.mode)
+        alphabet = self.__validate_alphabet(self.alphabet)
+        cipher = self.__validate_cipher(self.cipher)
+        mode = self.__validate_mode(self.mode)
 
         if alphabet != "invalid" and cipher != "invalid" and mode != "invalid":
             return True
 
         return False
 
-    # TODO: Check environment variables
-    def check_args(self) -> dict:
+    def check_args(self) -> list:
         """ Check if arguments have been passed when running client
+            Note they must be passed in order of alphabet, cipher, mode.
         """
-        sys_args = {}
+        sys_args = []
         for i, arg in enumerate(sys.argv):
             match i:
                 case 1:
-                    alphabet = self.validate_alphabet(arg)
-                    sys_args["alphabet"] = alphabet
+                    alphabet = self.__validate_alphabet(arg)
+                    sys_args.append(alphabet)
 
                 case 2:
-                    cipher = self.validate_cipher(arg)
-                    sys_args["cipher"] = cipher
+                    cipher = self.__validate_cipher(arg)
+                    sys_args.append(cipher)
 
                 case 3:
-                    mode = self.validate_mode(arg)
-                    sys_args["mode"] = mode
+                    mode = self.__validate_mode(arg)
+                    sys_args.append(mode)
 
                 case _:
                     pass
 
         return sys_args
+
+    def check_env(self) -> list:
+        """ Check environment variables, named VIGENERE_ALPHABET,
+            VIGENERE_CIPHER and VIGENERE_MODE.
+        """
+
+        dotenv.load_dotenv()
+
+        envs = []
+        alphabet = os.getenv("VIGENERE_ALPHABET")
+        if alphabet is not None:
+            envs.append(self.__validate_alphabet(alphabet))
+
+        cipher = os.getenv("VIGENERE_CIPHER")
+        if cipher is not None:
+            envs.append(self.__validate_cipher(cipher))
+
+        mode = os.getenv("VIGENERE_MODE")
+        if mode is not None:
+            envs.append(self.__validate_mode(mode))
+
+        return envs
 
     # Functions on alphabet
     def __input_alphabet(self) -> str:
@@ -169,7 +191,7 @@ class Client:
         input_alphabet = True
         while input_alphabet:
             alphabet = input("Alphabet: (Finnish/English) ")
-            match self.validate_alphabet(alphabet):
+            match self.__validate_alphabet(alphabet):
                 case "finnish":
                     input_alphabet = False
                     return "finnish"
@@ -179,7 +201,7 @@ class Client:
                 case "invalid":
                     print("Invalid input!")
 
-    def validate_alphabet(self, alphabet: str) -> str:
+    def __validate_alphabet(self, alphabet: str) -> str:
         """ Validate if given alphabet is correct, and returns it in correct format
             EVERY INPUT MUST BE VALIDATED, because the code only uses values returned by validation
         """
@@ -220,7 +242,7 @@ class Client:
         input_cipher = True
         while input_cipher:
             cipher = input("Cipher: (Autokey/Vigenere) ")
-            match self.validate_cipher(cipher):
+            match self.__validate_cipher(cipher):
                 case "autokey":
                     input_cipher = False
                     return "autokey"
@@ -230,7 +252,7 @@ class Client:
                 case "invalid":
                     print("Invalid input!")
 
-    def validate_cipher(self, cipher: str) -> str:
+    def __validate_cipher(self, cipher: str) -> str:
         """ Validate if given cipher is correct, and returns it in correct format
             EVERY INPUT MUST BE VALIDATED, because the code only uses values returned by validation
         """
@@ -267,7 +289,7 @@ class Client:
         while input_mode:
             mode = input("Mode: (Encrypt/Decrypt) ")
 
-            match self.validate_mode(mode):
+            match self.__validate_mode(mode):
                 case "encrypt":
                     input_mode = False
                     return "encrypt"
@@ -277,7 +299,7 @@ class Client:
                 case "invalid":
                     print("Invalid input!")
 
-    def validate_mode(self, mode: str) -> str:
+    def __validate_mode(self, mode: str) -> str:
         """ Validate if given mode is correct, and returns it in correct format
             EVERY INPUT MUST BE VALIDATED, because the code only uses values returned by validation
         """
@@ -308,7 +330,7 @@ class Client:
 if __name__ == "__main__":
     client = Client()
 
-    args = client.check_args()
+    args = client.check_env()
     if args:
         client.config(args)
     else:
